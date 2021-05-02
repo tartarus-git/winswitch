@@ -5,6 +5,7 @@
 
 // Other includes.
 #include <vector>
+#include <string.h>
 
 // Debugging.
 #ifdef _DEBUG																										// Define logging code for debug mode.
@@ -14,6 +15,13 @@ void log(const TCHAR* message) { OutputDebugString(message); }
 #define LOG(message) ((void)0)																						// This is one way to make the compiler totally remove the logging code.
 #endif																												// 0; is a complete statement. The (void) just makes sure you can't assign it to any variable.
 																													// ((void)0); just gets optimized out by the compiler.
+
+// Comparing strings.
+#ifdef UNICODE
+#define TSTRCMP(str1, str2) wcscmp(str1, str2)
+#else
+#define TSTRCMP(str1, str2) strcmp(str1, str2)
+#endif
 
 // Hotkey.
 #define HOTKEY_ID 0																									// The ID for the hotkey.
@@ -37,7 +45,10 @@ BOOL CALLBACK monitorDiscoveryProc(HMONITOR handle, HDC context, LPRECT rect, LP
 	return true;
 }
 
-// Window stuff.
+// Window stuff.																									// These windows receive focus when normal windows are minimized.
+HWND progman;																										// Handle to the progman window.
+HWND tray;																											// Handle to the shell tray window.
+
 LRESULT CALLBACK windowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
 	switch (uMsg) {
 	case WM_DESTROY:																								// Handle WM_DESTROY message.
@@ -46,8 +57,28 @@ LRESULT CALLBACK windowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
 	case WM_HOTKEY:																									// Handle WM_HOTKEY message.
 		if (wParam == HOTKEY_ID) {																					// Only continue if the id matches our hotkey. This isn't necessary, but for completeness.
 			LOG("Hotkey pressed, getting foreground window...");
+			// Validation
 			HWND target = GetForegroundWindow();																	// Get the handle to the window which currently has user's focus.
-			if (target) {																							// If such a window doesn't exist, skip the whole move algorithm.
+			if (target == progman || target == tray) {																// If all windows are out of focus, skip move algorithm.
+				LOG("All normal windows are out of focus and either progman or tray window has focus. Skipping move algorithm...");
+				return 0;
+			}
+			if (target) {																							// If not even one of the system windows has focus, also skip the move algorithm.
+				TCHAR classNameBuffer[8];					// TODO: Maybe you could get the handle of the last WorkerW window and use it here instead. What significance does the order have in spy++ and windows?
+				classNameBuffer[7] = TEXT('\0');																	// Trust me, this is necessary to make sure that the string cmp works. Read the GetClassName docs.
+				if (GetClassName(target, classNameBuffer, sizeof(classNameBuffer))) {								// If the target window is a WorkerW window, all normal windows don't have focus, so skip move.
+					if (!TSTRCMP(classNameBuffer, TEXT("WorkerW"))) {
+						LOG("All normal windows are out of focus and a WorkerW window has focus. Skipping move algorithm...");
+						return 0;
+					}
+				}
+				else {
+					LOG("Couldn't get the class name of the target window for validation purpouses. Terminating...");
+					PostQuitMessage(0);
+					return 0;
+				}
+
+				// Move algorithm.
 				LOG("Foreground monitor found, getting the monitor in which the window is located...");
 				HMONITOR currentMonitorHandle = MonitorFromWindow(target, MONITOR_DEFAULTTONEAREST);				// Get the handle to the monitor with the greatest area of intersection with the target window.
 				LOG("Monitor found. Finding the same monitor in the monitor list...");
@@ -94,7 +125,7 @@ LRESULT CALLBACK windowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
 				}
 
 				LOG("Found target monitor in the monitor list. Moving window to the next monitor in the monitor list...");
-				// Move the target window to new monitor and resize it accordingly so that the intersection is large enough for windows to maximize to the right monitor. Also repaint the window.
+				// Move the target window to new monitor and resize it accordingly so that the intersection is large enough for window to maximize to the right monitor. Also repaint the window.
 				if (MoveWindow(target, monitors[nextMonitor].rect.left, monitors[nextMonitor].rect.top,
 					monitors[nextMonitor].rect.right - monitors[nextMonitor].rect.left, monitors[nextMonitor].rect.bottom - monitors[nextMonitor].rect.top, true)) {
 					if (ShowWindow(target, SW_MAXIMIZE)) { return 0; }												// Maximize window.
@@ -133,9 +164,21 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, char* lpCmdLine
 	HWND hWnd = CreateWindowEx(0, CLASS_NAME, NULL, 0, 0, 0, 0, 0, HWND_MESSAGE, NULL, hInstance, NULL);			// Create a light-weight, bare-minimum, message-only, invisible window.
 
 	if (!hWnd) {																									// If window creation not successful, terminate program.
-		LOG("Error encountered while creating the window, terminating...");											// No need to unregister WNDCLASS, OS does it for us on program termination.
+		LOG("Error encountered while creating the window. Terminating...");											// No need to unregister WNDCLASS, OS does it for us on program termination.
 		return 0;
 	}												// TODO: Does the compiler optimize if statements to not use a not if it doesn't need be? Because the above is slightly inefficient is it not?
+
+	LOG("Finding relevant system windows...");
+	progman = FindWindow(TEXT("Progman"), TEXT("Program Manager"));													// Find the program manager window.
+	if (!progman) {																									// If the program manager window couldn't be found, terminate.
+		LOG("Error encountered while finding program manager. Terminating...");
+		return 0;
+	}
+	tray = FindWindow(TEXT("Shell_TrayWnd"), TEXT(""));																// Find the shell tray window.
+	if (!tray) {																									// If the window couldn't be found, terminate.
+		LOG("Error encountered while finding the shell tray window. Terminating...");
+		return 0;
+	}
 
 	LOG("Discovering monitors...");
 	if (EnumDisplayMonitors(NULL, NULL, monitorDiscoveryProc, NULL)) {												// Enumerate the display monitors and add them to a list so that we can switch between them later.
