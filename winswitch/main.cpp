@@ -90,7 +90,7 @@ LRESULT CALLBACK windowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
 					}
 				}
 				if (nextMonitor == -1) {
-					if (monitors[lastMonitorIndex].handle = currentMonitorHandle) {									// Check if the monitor is the last one in the list.
+					if (monitors[lastMonitorIndex].handle == currentMonitorHandle) {									// Check if the monitor is the last one in the list.
 						nextMonitor = 0;																			// If it is, loop around and set the next monitor to the first monitor in the list.
 					}
 					else {																							// If the target monitor doesn't exist in the list, we know we have rediscover monitors.
