@@ -66,7 +66,7 @@ LRESULT CALLBACK windowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
 			if (target) {																							// If not even one of the system windows has focus, also skip the move algorithm.
 				TCHAR classNameBuffer[8];					// TODO: Maybe you could get the handle of the last WorkerW window and use it here instead. What significance does the order have in spy++ and windows?
 				classNameBuffer[7] = TEXT('\0');																	// Trust me, this is necessary to make sure that the string cmp works. Read the GetClassName docs.
-				if (GetClassName(target, classNameBuffer, sizeof(classNameBuffer))) {								// If the target window is a WorkerW window, all normal windows don't have focus, so skip move.
+				if (GetClassName(target, classNameBuffer, 8)) {														// If the target window is a WorkerW window, all normal windows don't have focus, so skip move.
 					if (!TSTRCMP(classNameBuffer, TEXT("WorkerW"))) {
 						LOG("All normal windows are out of focus and a WorkerW window has focus. Skipping move algorithm...");
 						return 0;
