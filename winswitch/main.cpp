@@ -18,7 +18,7 @@ void log(const TCHAR* message) { OutputDebugString(message); }
 
 // Comparing strings.
 #ifdef UNICODE
-#define TSTRCMP(str1, str2) wcscmp(str1, str2)
+#define TSTRCMP(str1, str2) wcscmp(str1, str2)																		// Switch between the normal and wide version of strcmp based on the UNICODE define.
 #else
 #define TSTRCMP(str1, str2) strcmp(str1, str2)
 #endif
@@ -54,11 +54,13 @@ LRESULT CALLBACK windowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
 	case WM_DESTROY:																								// Handle WM_DESTROY message.
 		PostQuitMessage(0);
 		return 0;
+
 	case WM_HOTKEY:																									// Handle WM_HOTKEY message.
 		if (wParam == HOTKEY_ID) {																					// Only continue if the id matches our hotkey. This isn't necessary, but for completeness.
 			LOG("Hotkey pressed, getting foreground window...");
-			// Validation
 			HWND target = GetForegroundWindow();																	// Get the handle to the window which currently has user's focus.
+
+			// Validation
 			if (target == progman || target == tray) {																// If all windows are out of focus, skip move algorithm.
 				LOG("All normal windows are out of focus and either progman or tray window has focus. Skipping move algorithm...");
 				return 0;
@@ -79,8 +81,39 @@ LRESULT CALLBACK windowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
 				}
 
 				// Move algorithm.
-				LOG("Foreground monitor found, getting the monitor in which the window is located...");
-				HMONITOR currentMonitorHandle = MonitorFromWindow(target, MONITOR_DEFAULTTONEAREST);				// Get the handle to the monitor with the greatest area of intersection with the target window.
+				LOG("Foreground window found, getting the monitor in which the window is located...");
+				HMONITOR currentMonitorHandle = MonitorFromWindow(target, MONITOR_DEFAULTTONULL);					// Get the handle to the monitor with the greatest area of intersection with the target window.
+
+				if (!currentMonitorHandle) {																		// If the window is outside of the bounds of all monitors, move window into first monitor.
+					LOG("Window isn't in the bounds of any monitor. Moving window to the first monitor...");
+					RECT targetRect;
+					if (GetWindowRect(target, &targetRect)) {
+						SIZE firstMonitorSize = { monitors[0].rect.right - monitors[0].rect.left, monitors[0].rect.bottom - monitors[0].rect.top };
+																// TODO: Research what the long type is in C++, is it the same as the int type. Depends right?
+
+						// If the window doesn't need to be resized to fit inside the first monitor, just change the position and be done with it. No need to repaint here. // TODO: Make sure thats true.
+						if (targetRect.right - targetRect.left <= firstMonitorSize.cx && targetRect.bottom - targetRect.top <= firstMonitorSize.cy) {
+							// The second param is NULL because it doesn't matter because we put SWP_NOZORDER in the last param.
+							if (SetWindowPos(target, NULL, monitors[0].rect.left, monitors[0].rect.top, 0, 0, SWP_NOZORDER | SWP_NOSIZE)) {
+								LOG("Sucessfully moved the out-of-bounds window into the first monitor. Didn't need to change the size of the window.");
+								return 0;
+							}
+							LOG("Couldn't move the window into the first monitor. Quitting move algorithm...");
+							return 0;
+						}
+
+						// If the window does need to be resized to fit inside the first monitor, do that.
+						if (MoveWindow(target, monitors[0].rect.left, monitors[0].rect.top, firstMonitorSize.cx, firstMonitorSize.cy, true)) {
+							LOG("Sucessfully moved the out-of-bounds window into the first monitor. Resized the window so that it fits into the monitor.");
+							return 0;
+						}
+						LOG("Couldn't move the window into the first monitor. Quitting move algorithm...");
+						return 0;
+					}
+					LOG("Couldn't retrieve size of target window. Exiting move algorithm...");
+					return 0;
+				}
+
 				LOG("Monitor found. Finding the same monitor in the monitor list...");
 				int nextMonitor = -1;									// TODO: Should I use some sort of hashmap for this? The amount of monitors won't be large, is it worth it?
 				for (unsigned int i = 0; i < lastMonitorIndex; i++) {												// Loop through the list of monitors and find the target monitor. Find the next monitor as well.
@@ -90,7 +123,7 @@ LRESULT CALLBACK windowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
 					}
 				}
 				if (nextMonitor == -1) {
-					if (monitors[lastMonitorIndex].handle == currentMonitorHandle) {									// Check if the monitor is the last one in the list.
+					if (monitors[lastMonitorIndex].handle == currentMonitorHandle) {								// Check if the monitor is the last one in the list.
 						nextMonitor = 0;																			// If it is, loop around and set the next monitor to the first monitor in the list.
 					}
 					else {																							// If the target monitor doesn't exist in the list, we know we have rediscover monitors.
@@ -139,7 +172,8 @@ LRESULT CALLBACK windowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
 			return 0;
 		}
 	}
-	return DefWindowProc(hWnd, uMsg, wParam, lParam);
+
+	return DefWindowProc(hWnd, uMsg, wParam, lParam);																// Pass unhandled messages to the default message handler, which might make use of some messages that we ignore.
 }
 
 #ifdef UNICODE
