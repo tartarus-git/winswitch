@@ -84,6 +84,7 @@ LRESULT CALLBACK windowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
 				LOG("Foreground window found, getting the monitor in which the window is located...");
 				HMONITOR currentMonitorHandle = MonitorFromWindow(target, MONITOR_DEFAULTTONULL);					// Get the handle to the monitor with the greatest area of intersection with the target window.
 
+				// Out-of-bounds windows.
 				if (!currentMonitorHandle) {																		// If the window is outside of the bounds of all monitors, move window into first monitor.
 					LOG("Window isn't in the bounds of any monitor. Moving window to the first monitor...");
 					RECT targetRect;
@@ -102,7 +103,7 @@ LRESULT CALLBACK windowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
 							return 0;
 						}
 
-						// If the window does need to be resized to fit inside the first monitor, do that.
+						// If the window does need to be resized to fit inside the first monitor, do that. Repaint window because size changed.
 						if (MoveWindow(target, monitors[0].rect.left, monitors[0].rect.top, firstMonitorSize.cx, firstMonitorSize.cy, true)) {
 							LOG("Sucessfully moved the out-of-bounds window into the first monitor. Resized the window so that it fits into the monitor.");
 							return 0;
@@ -114,6 +115,7 @@ LRESULT CALLBACK windowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
 					return 0;
 				}
 
+				// In-bounds windows.
 				LOG("Monitor found. Finding the same monitor in the monitor list...");
 				int nextMonitor = -1;									// TODO: Should I use some sort of hashmap for this? The amount of monitors won't be large, is it worth it?
 				for (unsigned int i = 0; i < lastMonitorIndex; i++) {												// Loop through the list of monitors and find the target monitor. Find the next monitor as well.
