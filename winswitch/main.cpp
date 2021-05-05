@@ -90,9 +90,8 @@ LRESULT CALLBACK windowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
 					RECT targetRect;
 					if (GetWindowRect(target, &targetRect)) {
 						SIZE firstMonitorSize = { monitors[0].rect.right - monitors[0].rect.left, monitors[0].rect.bottom - monitors[0].rect.top };
-																// TODO: Research what the long type is in C++, is it the same as the int type. Depends right?
 
-						// If the window doesn't need to be resized to fit inside the first monitor, just change the position and be done with it. No need to repaint here. // TODO: Make sure thats true.
+						// If the window doesn't need to be resized to fit inside the first monitor, just change the position and be done with it. No need to repaint here.
 						if (targetRect.right - targetRect.left <= firstMonitorSize.cx && targetRect.bottom - targetRect.top <= firstMonitorSize.cy) {
 							// The second param is NULL because it doesn't matter because we put SWP_NOZORDER in the last param.
 							if (SetWindowPos(target, NULL, monitors[0].rect.left, monitors[0].rect.top, 0, 0, SWP_NOZORDER | SWP_NOSIZE)) {
@@ -159,15 +158,23 @@ LRESULT CALLBACK windowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
 					}
 				}
 
+				// Actual move code for in-bound windows (the main application of this tool).
 				LOG("Found target monitor in the monitor list. Moving window to the next monitor in the monitor list...");
-				// Move the target window to new monitor and resize it accordingly so that the intersection is large enough for window to maximize to the right monitor. Also repaint the window.
-				if (MoveWindow(target, monitors[nextMonitor].rect.left, monitors[nextMonitor].rect.top,
-					monitors[nextMonitor].rect.right - monitors[nextMonitor].rect.left, monitors[nextMonitor].rect.bottom - monitors[nextMonitor].rect.top, true)) {
-					if (ShowWindow(target, SW_MAXIMIZE)) { return 0; }												// Maximize window.
-					LOG("Couldn't maximize the target window.");
-					return 0;																						// This and the following error shouldn't terminate program, so we're not calling PostQuitMessage().
+				// Restore the window to it's original size before moving. This is because restoring it after the move will bring it back to where it was before it was maximized.
+				// It needs to be unmaximized after the move so that the OS can update the position to which it will be sent back to if it is restored.
+				// NOTE: We only restore the window before the move because moving an unmaximized window makes more sense. Technically, you could unmaximize and then maximize it again after the move.
+				if (ShowWindow(target, SW_RESTORE)) {
+					// Move the target window to new monitor and resize it accordingly so that the intersection is large enough for window to maximize to the right monitor. Also repaint the window.
+					if (MoveWindow(target, monitors[nextMonitor].rect.left, monitors[nextMonitor].rect.top,
+						monitors[nextMonitor].rect.right - monitors[nextMonitor].rect.left, monitors[nextMonitor].rect.bottom - monitors[nextMonitor].rect.top, true)) {
+						if (ShowWindow(target, SW_MAXIMIZE)) { return 0; }											// Maximize window.
+						LOG("Couldn't maximize the target window.");
+						return 0;																					// This and the following errors shouldn't terminate program, so we're not calling PostQuitMessage().
+					}
+					LOG("Couldn't move target window to new monitor.");
+					return 0;
 				}
-				LOG("Couldn't move target window to new monitor.");
+				LOG("Couldn't restore target window before moving it to new monitor.");
 				return 0;
 			}
 			LOG("No foreground window found.");
@@ -175,7 +182,7 @@ LRESULT CALLBACK windowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
 		}
 	}
 
-	return DefWindowProc(hWnd, uMsg, wParam, lParam);																// Pass unhandled messages to the default message handler, which might make use of some messages that we ignore.
+	return DefWindowProc(hWnd, uMsg, wParam, lParam);																// Pass unhandled messages to default message handler, which might use messages that we ignore.
 }
 
 #ifdef UNICODE
