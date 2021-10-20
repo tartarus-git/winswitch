@@ -1,7 +1,6 @@
 // Windows includes.
 #define WIN32_LEAN_AND_MEAN																							// We don't need to include the whole Windows.h header for this simple program.
 #include <Windows.h>
-#include <debugapi.h>
 
 // Other includes.
 #include <vector>
@@ -116,7 +115,7 @@ LRESULT CALLBACK windowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
 
 				// In-bounds windows.
 				LOG("Monitor found. Finding the same monitor in the monitor list...");
-				int nextMonitor = -1;									// TODO: Should I use some sort of hashmap for this? The amount of monitors won't be large, is it worth it?
+				int nextMonitor = -1;
 				for (unsigned int i = 0; i < lastMonitorIndex; i++) {												// Loop through the list of monitors and find the target monitor. Find the next monitor as well.
 					if (monitors[i].handle == currentMonitorHandle) {
 						nextMonitor = i + 1;
@@ -162,7 +161,7 @@ LRESULT CALLBACK windowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
 				LOG("Found target monitor in the monitor list. Moving window to the next monitor in the monitor list...");
 				// Restore the window to it's original size before moving. This is because restoring it after the move will bring it back to where it was before it was maximized.
 				// It needs to be unmaximized after the move so that the OS can update the position to which it will be sent back to if it is restored.
-				// NOTE: We only restore the window before the move because moving an unmaximized window makes more sense. Technically, you could unmaximize and then maximize it again after the move.
+				// NOTE: We only restore the window BEFORE the move because moving an unmaximized window makes more sense. Technically, you could unmaximize and then maximize it again after the move.
 				if (ShowWindow(target, SW_RESTORE)) {
 					// Move the target window to new monitor and resize it accordingly so that the intersection is large enough for window to maximize to the right monitor. Also repaint the window.
 					if (MoveWindow(target, monitors[nextMonitor].rect.left, monitors[nextMonitor].rect.top,
@@ -209,7 +208,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, char* lpCmdLine
 	if (!hWnd) {																									// If window creation not successful, terminate program.
 		LOG("Error encountered while creating the window. Terminating...");											// No need to unregister WNDCLASS, OS does it for us on program termination.
 		return 0;
-	}												// TODO: Does the compiler optimize if statements to not use a not if it doesn't need be? Because the above is slightly inefficient is it not?
+	}
 
 	LOG("Finding relevant system windows...");
 	progman = FindWindow(TEXT("Progman"), TEXT("Program Manager"));													// Find the program manager window.
