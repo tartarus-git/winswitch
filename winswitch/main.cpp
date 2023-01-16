@@ -17,8 +17,6 @@ void log(const TCHAR* message) { OutputDebugString(message); }
 																													// NOTE: We could have used #undef to achieve this, but I'm keeping ((void)0) just in case
 																													// it's better in some strange situations that I can't think of right now.
 
-// TODO: Set _WINDOW to _WINDOWS in the preprocessor flags thing, you've been lucky that this hasn't caused issues for you.
-
 // Comparing strings.
 #ifdef UNICODE
 #define TSTRCMP(str1, str2) wcscmp(str1, str2)																		// Switch between the normal and wide version of strcmp based on the UNICODE define.
