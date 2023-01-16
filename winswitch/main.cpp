@@ -4,7 +4,7 @@
 
 // Other includes.
 #include <vector>
-#include <string.h>
+#include <cstring>
 
 // Debugging.
 #ifdef _DEBUG																										// Define logging code for debug mode.
@@ -16,6 +16,8 @@ void log(const TCHAR* message) { OutputDebugString(message); }
 																													// ((void)0); just gets optimized out by the compiler.
 																													// NOTE: We could have used #undef to achieve this, but I'm keeping ((void)0) just in case
 																													// it's better in some strange situations that I can't think of right now.
+
+// TODO: Set _WINDOW to _WINDOWS in the preprocessor flags thing, you've been lucky that this hasn't caused issues for you.
 
 // Comparing strings.
 #ifdef UNICODE
