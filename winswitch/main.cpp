@@ -14,6 +14,8 @@ void log(const TCHAR* message) { OutputDebugString(message); }
 #define LOG(message) ((void)0)																						// This is one way to make the compiler totally remove the logging code.
 #endif																												// 0; is a complete statement. The (void) just makes sure you can't assign it to any variable.
 																													// ((void)0); just gets optimized out by the compiler.
+																													// NOTE: We could have used #undef to achieve this, but I'm keeping ((void)0) just in case
+																													// it's better in some strange situations that I can't think of right now.
 
 // Comparing strings.
 #ifdef UNICODE
@@ -74,7 +76,7 @@ LRESULT CALLBACK windowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
 					}
 				}
 				else {
-					LOG("Couldn't get the class name of the target window for validation purpouses. Terminating...");
+					LOG("Couldn't get the class name of the target window for validation purposes. Terminating...");
 					PostQuitMessage(0);
 					return 0;
 				}
@@ -223,6 +225,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, char* lpCmdLine
 	}
 
 	LOG("Discovering monitors...");
+	// TODO: Technically these if's should be inverted because I'm pretty sure the x86 branch predictor's first guess is NOT taken.
+	// Also because I've heard compilers for x86 make the taken branch require the jump, possibly to optimize for the above fact.
+	// TODO: Research about this topic.
 	if (EnumDisplayMonitors(NULL, NULL, monitorDiscoveryProc, NULL)) {												// Enumerate the display monitors and add them to a list so that we can switch between them later.
 		lastMonitorIndex = monitors.size() - 1;																		// Store the index of the last monitor for later use in the move algorithm.
 
